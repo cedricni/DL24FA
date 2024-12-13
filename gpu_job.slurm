@@ -1,3 +1,4 @@
+#!/bin/sh
 #SBATCH --job-name=JEPA
 #SBATCH --account=csci_ga_2572-2024fa
 #SBATCH --partition=n1s8-v100-1
