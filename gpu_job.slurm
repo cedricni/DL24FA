@@ -9,8 +9,9 @@
 #SBATCH --time=08:00:00
 #SBATCH --gres=gpu:1
 
-singularity exec --bind /scratch --nv --overlay /scratch/[netid]/overlay-25GB-500K.ext3:rw /scratch/[netid]/cuda11.8.86-cudnn8.7-devel-ubuntu22.04.2.sif /bin/bash -c "
+singularity exec --bind /scratch --nv --overlay /scratch/tn2354/overlay-25GB-500K.ext3 /scratch/tn2354/ubuntu-20.04.3.sif /bin/bash << EOF
 source /ext3/miniconda3/etc/profile.d/conda.sh
 conda activate my_env
 cd /scratch/tn2354/DL24FA
 python ./trainer.py
+EOF
