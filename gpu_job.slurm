@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --job-name=JEPA
 #SBATCH --account=csci_ga_2572-2024fa
-#SBATCH --partition=n1s8-v100-1
+#SBATCH --partition=c12m85-a100-1
 #SBATCH --open-mode=append
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
