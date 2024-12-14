@@ -149,17 +149,27 @@ class CNNEncoder(nn.Module):
             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),  # Output: 8x8
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),  # Output: 4x4
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),  # Output: 4x4 (expected)
             nn.BatchNorm2d(256),
             nn.ReLU()
         )
-        self.fc = nn.Linear(256 * 4 * 4, latent_dim)  # Map to latent space
+        
+        # Dynamically calculate the flattened size
+        self.flattened_size = self._get_flattened_size()
+        self.fc = nn.Linear(self.flattened_size, latent_dim)  # Final fully connected layer
+
+    def _get_flattened_size(self):
+        # Pass a dummy tensor to calculate output size
+        dummy_input = torch.zeros(1, 2, 65, 65)  # [Batch, Channels, Height, Width]
+        with torch.no_grad():
+            output = self.conv(dummy_input)
+        return output.view(1, -1).size(1)
 
     def forward(self, x):
-        # Input shape: [B, C, H, W] where C = 2 (2-channel input)
         x = self.conv(x)
         x = x.view(x.size(0), -1)  # Flatten
         return self.fc(x)
+
     
 class JEPAModel(nn.Module):
     def __init__(self, latent_dim=256, action_dim=2):
