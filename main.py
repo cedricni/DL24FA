@@ -75,7 +75,7 @@ if __name__ == "__main__":
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
     model.train()
-    for epoch in range(50):
+    for epoch in range(20):
         epoch_loss = 0
         for batch in probe_train_ds:
             optimizer.zero_grad()
@@ -85,7 +85,7 @@ if __name__ == "__main__":
             optimizer.step()
         scheduler.step()
 
-        print(f"Epoch [{epoch+1}/50] Loss: {loss.item():.4f}")
+        print(f"Epoch [{epoch+1}/20] Loss: {loss.item():.4f}")
 
     # Save trained model
     torch.save(model.state_dict(), "trained_jepa_model.pth")
