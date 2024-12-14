@@ -116,15 +116,17 @@ class Predictor(nn.Module):
 class ViTEncoder(nn.Module):
     def __init__(self, latent_dim=256, pretrained=True):
         super().__init__()
-        # Load Vision Transformer
+        # Load Vision Transformer from torchvision
         self.vit = vit_b_16(pretrained=pretrained)
-        self.vit.heads = nn.Identity()  # Remove the classification head
+        self.vit.heads = nn.Identity()  # Remove classification head
         self.fc = nn.Linear(768, latent_dim)  # Map ViT output to latent_dim
 
     def forward(self, x):
         # Ensure input has 3 channels
-        if x.shape[1] != 3:
-            x = x.repeat(1, 3, 1, 1)  # Convert grayscale to 3 channels
+        if x.shape[1] == 6:  # If input has 6 channels
+            x = x[:, :3, :, :]  # Take only the first 3 channels
+        elif x.shape[1] == 1:  # If grayscale, repeat to 3 channels
+            x = x.repeat(1, 3, 1, 1)
 
         # Resize input to 224x224
         x = F.interpolate(x, size=(224, 224), mode="bilinear", align_corners=False)
