@@ -2,6 +2,7 @@ from typing import List
 import numpy as np
 from torch import nn
 from torch.nn import functional as F
+from torchvision.models import vit_b_16
 import torch
 
 
@@ -112,35 +113,56 @@ class Predictor(nn.Module):
         x = torch.cat([state, action], dim=1)
         return self.net(x)
 
-class JEPAModel(nn.Module):
-    def __init__(self, latent_dim=256):
+class ViTEncoder(nn.Module):
+    def __init__(self, latent_dim=256, pretrained=True):
         super().__init__()
-        self.encoder = Encoder(latent_dim)
-        self.predictor = Predictor(latent_dim)
-        self.target_encoder = Encoder(latent_dim)
+        # Load Vision Transformer from torchvision
+        self.vit = vit_b_16(pretrained=pretrained)
+        self.vit.heads = nn.Identity()  # Remove the classification head
+        self.fc = nn.Linear(768, latent_dim)  # Map ViT output to latent_dim
+
+    def forward(self, x):
+        # ViT expects [B, 3, H, W], ensure 3-channel input
+        if x.shape[1] != 3:
+            x = x.repeat(1, 3, 1, 1)  # Convert grayscale to 3 channels
+        x = self.vit(x)  # Pass through Vision Transformer
+        return self.fc(x)  # Map to latent_dim
+    
+class JEPAModel(nn.Module):
+    def __init__(self, latent_dim=256, action_dim=2, pretrained_vit=True):
+        super().__init__()
+        self.encoder = ViTEncoder(latent_dim=latent_dim, pretrained=pretrained_vit)
+        self.predictor = nn.Sequential(
+            nn.Linear(latent_dim + action_dim, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, latent_dim),
+        )
+        self.target_encoder = ViTEncoder(latent_dim=latent_dim, pretrained=False)
         self.repr_dim = latent_dim
-        
+
+        # Copy encoder weights to target encoder (EMA initialization)
         for param_t, param in zip(self.target_encoder.parameters(), self.encoder.parameters()):
             param_t.data.copy_(param.data)
             param_t.requires_grad = False
-            
+
     def update_target_encoder(self, momentum=0.996):
         for param_t, param in zip(self.target_encoder.parameters(), self.encoder.parameters()):
             param_t.data = param_t.data * momentum + param.data * (1 - momentum)
-            
+
     def forward(self, states, actions):
-        curr_state = self.encoder(states[:,0])
+        B, T, C, H, W = states.shape
+        curr_state = self.encoder(states[:, 0])  # Encode the first state
         predictions = [curr_state]
-        
+
         for t in range(actions.shape[1]):
-            curr_state = self.predictor(curr_state, actions[:, t])
+            curr_state = self.predictor(torch.cat([curr_state, actions[:, t]], dim=1))
             predictions.append(curr_state)
-            
+
         return torch.stack(predictions, dim=1)
 
     def training_step(self, states, actions):
         B, T, C, H, W = states.shape
-        device = states.device
 
         with torch.no_grad():
             target_repr = self.target_encoder(states.reshape(-1, C, H, W))
@@ -149,27 +171,22 @@ class JEPAModel(nn.Module):
         curr_state = self.encoder(states[:, 0])
         predictions = [curr_state]
 
-        for t in range(T-1):
-            curr_state = self.predictor(curr_state, actions[:, t])
+        for t in range(T - 1):
+            curr_state = self.predictor(torch.cat([curr_state, actions[:, t]], dim=1))
             predictions.append(curr_state)
 
         pred_repr = torch.stack(predictions, dim=1)
+        loss_pred = nn.functional.mse_loss(pred_repr, target_repr)
 
-        loss_pred = F.mse_loss(pred_repr, target_repr)
-        
-        std_pred = torch.sqrt(pred_repr.var(dim=0) + 1e-04)
-        variance_loss = torch.mean(F.relu(1 - std_pred))
-        
+        # Regularization terms
+        std_pred = torch.sqrt(pred_repr.var(dim=0) + 1e-4)
+        variance_loss = torch.mean(nn.functional.relu(1 - std_pred))
+
         pred_flat = pred_repr.reshape(-1, self.repr_dim)
         pred_centered = pred_flat - pred_flat.mean(dim=0, keepdim=True)
         cov = (pred_centered.T @ pred_centered) / (pred_centered.shape[0] - 1)
-        cov_loss = (cov - torch.eye(cov.shape[0], device=device)).pow(2).sum()
+        cov_loss = (cov - torch.eye(cov.shape[0], device=pred_flat.device)).pow(2).sum()
 
         total_loss = loss_pred + 0.1 * variance_loss + 0.01 * cov_loss
 
-        return {
-            'loss': total_loss,
-            'pred_loss': loss_pred,
-            'var_loss': variance_loss,
-            'cov_loss': cov_loss
-        }
+        return {"loss": total_loss, "pred_loss": loss_pred, "var_loss": variance_loss, "cov_loss": cov_loss}
