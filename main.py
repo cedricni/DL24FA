@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     print("Starting Training Process...")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
     model.train()
