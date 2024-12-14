@@ -14,7 +14,6 @@ singularity exec --bind /scratch --nv \
   /scratch/tn2354/ubuntu-20.04.3.sif /bin/bash <<EOF
 source /ext3/miniconda3/etc/profile.d/conda.sh
 conda activate my_env
-pip install pyparsing --upgrade
 cd /scratch/tn2354/DL24FA
 python ./main.py
 EOF
