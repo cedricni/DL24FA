@@ -15,5 +15,5 @@ singularity exec --bind /scratch --nv \
 source /ext3/miniconda3/etc/profile.d/conda.sh
 conda activate my_env
 cd /scratch/tn2354/DL24FA
-python ./trainer.py
+python ./main.py
 EOF
