@@ -3,8 +3,8 @@
 #SBATCH --account=csci_ga_2572-2024fa
 #SBATCH --partition=n1s8-v100-1
 #SBATCH --open-mode=append
-#SBATCH --output=./%j_%x.out
-#SBATCH --error=./%j_%x.err
+#SBATCH --output=./out/%j_%x.out
+#SBATCH --error=./out/%j_%x.err
 #SBATCH --export=ALL
 #SBATCH --time=08:00:00
 #SBATCH --gres=gpu:1
