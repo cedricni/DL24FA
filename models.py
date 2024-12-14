@@ -116,17 +116,22 @@ class Predictor(nn.Module):
 class ViTEncoder(nn.Module):
     def __init__(self, latent_dim=256, pretrained=True):
         super().__init__()
-        # Load Vision Transformer from torchvision
+        # Load Vision Transformer
         self.vit = vit_b_16(pretrained=pretrained)
         self.vit.heads = nn.Identity()  # Remove the classification head
         self.fc = nn.Linear(768, latent_dim)  # Map ViT output to latent_dim
 
     def forward(self, x):
-        # ViT expects [B, 3, H, W], ensure 3-channel input
+        # Ensure input has 3 channels
         if x.shape[1] != 3:
             x = x.repeat(1, 3, 1, 1)  # Convert grayscale to 3 channels
-        x = self.vit(x)  # Pass through Vision Transformer
-        return self.fc(x)  # Map to latent_dim
+
+        # Resize input to 224x224
+        x = F.interpolate(x, size=(224, 224), mode="bilinear", align_corners=False)
+
+        # Pass through ViT
+        x = self.vit(x)
+        return self.fc(x)
     
 class JEPAModel(nn.Module):
     def __init__(self, latent_dim=256, action_dim=2, pretrained_vit=True):
