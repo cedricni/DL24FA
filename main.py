@@ -69,15 +69,13 @@ if __name__ == "__main__":
     probe_train_ds, probe_val_ds = load_data(device)
     model = load_model()
 
-    # Additions to integrate training
     print("Starting Training Process...")
 
-    # Training the model (newly added)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", patience=5, factor=0.5)
 
     model.train()
-    for epoch in range(20):
+    for epoch in range(50):
         epoch_loss = 0
         for batch in probe_train_ds:
             optimizer.zero_grad()
@@ -87,7 +85,7 @@ if __name__ == "__main__":
             optimizer.step()
         scheduler.step()
 
-        print(f"Epoch [{epoch+1}/20] Loss: {loss.item():.4f}")
+        print(f"Epoch [{epoch+1}/50] Loss: {loss.item():.4f}")
 
     # Save trained model
     torch.save(model.state_dict(), "trained_jepa_model.pth")
