@@ -6,7 +6,7 @@
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --export=ALL
-#SBATCH --time=08:00:00
+#SBATCH --time=01:00:00
 #SBATCH --gres=gpu:1
 
 singularity exec --bind /scratch --nv \
