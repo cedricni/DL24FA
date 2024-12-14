@@ -43,7 +43,7 @@ def load_data(device):
 
 def load_model():
     """Load or initialize the model."""
-    model = JEPAModel(latent_dim=256, pretrained_vit=True).to(device)
+    model = JEPAModel(latent_dim=256).to(device)
     return model
 
 

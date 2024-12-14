@@ -135,20 +135,46 @@ class ViTEncoder(nn.Module):
         x = self.vit(x)
         return self.fc(x)  # Map to latent_dim
     
-class JEPAModel(nn.Module):
-    def __init__(self, latent_dim=256, action_dim=2, pretrained_vit=True):
+class CNNEncoder(nn.Module):
+    def __init__(self, latent_dim=256):
         super().__init__()
-        self.encoder = ViTEncoder(latent_dim=latent_dim, pretrained=pretrained_vit)
+        # Define CNN layers
+        self.conv = nn.Sequential(
+            nn.Conv2d(2, 32, kernel_size=3, stride=2, padding=1),  # Output: 32x32
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),  # Output: 16x16
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),  # Output: 8x8
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),  # Output: 4x4
+            nn.BatchNorm2d(256),
+            nn.ReLU()
+        )
+        self.fc = nn.Linear(256 * 4 * 4, latent_dim)  # Map to latent space
+
+    def forward(self, x):
+        # Input shape: [B, C, H, W] where C = 2 (2-channel input)
+        x = self.conv(x)
+        x = x.view(x.size(0), -1)  # Flatten
+        return self.fc(x)
+    
+class JEPAModel(nn.Module):
+    def __init__(self, latent_dim=256, action_dim=2):
+        super().__init__()
+        self.encoder = CNNEncoder(latent_dim=latent_dim)
         self.predictor = nn.Sequential(
             nn.Linear(latent_dim + action_dim, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Linear(512, latent_dim),
         )
-        self.target_encoder = ViTEncoder(latent_dim=latent_dim, pretrained=False)
+        self.target_encoder = CNNEncoder(latent_dim=latent_dim)
         self.repr_dim = latent_dim
 
-        # Copy encoder weights to target encoder (EMA initialization)
+        # Copy weights to target encoder (EMA initialization)
         for param_t, param in zip(self.target_encoder.parameters(), self.encoder.parameters()):
             param_t.data.copy_(param.data)
             param_t.requires_grad = False
